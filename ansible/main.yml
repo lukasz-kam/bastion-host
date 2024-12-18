@@ -1,0 +1,54 @@
+- hosts: localhost
+  tasks:
+    - name: Check if user-ca file exists
+      ansible.builtin.stat:
+        path: ../certificates/user-ca
+      register: user_ca_file
+
+    - name: Generate CA keys
+      ansible.builtin.shell: ssh-keygen -t ecdsa -f user-ca
+      args:
+        chdir: ../certificates
+      when: not user_ca_file.stat.exists
+
+    - name: Add CA public key to ca.pub
+      ansible.builtin.shell: cat user-ca.pub > ca.pub
+      args:
+        chdir: ../certificates
+
+- hosts: bastion
+  become: true
+  tasks:
+    - name: Upload sshd_config
+      ansible.builtin.copy:
+        src: ../files/bastion_config
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Change SSH port
+      ansible.builtin.shell: echo "" >> /etc/ssh/sshd_config && echo "Port 37271" >> /etc/ssh/sshd_config
+
+- hosts: bastion, secured
+  become: true
+  tasks:
+    - name: Upload ca.pub
+      ansible.builtin.copy:
+        src: ../certificates/ca.pub
+        dest: /etc/ssh/ca.pub
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Remove authorized_keys file
+      ansible.builtin.file:
+        path: /home/ec2-user/.ssh/authorized_keys
+        state: absent
+
+    - name: Change SSHD to use TrustedUserCAKeys file
+      ansible.builtin.shell: echo "" >> /etc/ssh/sshd_config && echo "TrustedUserCAKeys /etc/ssh/ca.pub" >> /etc/ssh/sshd_config
+
+    - name: Restart SSHD service
+      ansible.builtin.service:
+        name: sshd
+        state: restarted

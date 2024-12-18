@@ -1,0 +1,9 @@
+Host bastion
+    HostName {{ bastion_ip }}
+    User ec2-user
+    IdentityFile ~/.ssh/bastion-key
+
+Host secured
+    HostName {{ secured_ip }}
+    User ec2-user
+    IdentityFile ~/.ssh/bastion-key

@@ -1,0 +1,28 @@
+- hosts: localhost
+  tasks:
+    - name: Generate SSH keys
+      ansible.builtin.shell: rm -f bastion-key* && ssh-keygen -t ecdsa -f bastion-key -N ""
+      args:
+        chdir: ../certificates
+
+    - name: Sign SSH key
+      ansible.builtin.shell: ssh-keygen -s user-ca -I bastion-key -n ec2-user -V -5m:+5m bastion-key.pub
+      args:
+        chdir: ../certificates
+
+    - name: Move key to ~/.ssh/
+      ansible.builtin.shell: |
+        rm -f ~/.ssh/bastion-key ~/.ssh/bastion-key.pub ~/.ssh/bastion-key-cert.pub && \
+        mv ./bastion-key ./bastion-key.pub ./bastion-key-cert.pub ~/.ssh/
+      args:
+        chdir: ../certificates
+
+
+    - name: Generate SSH config
+      ansible.builtin.template:
+        src: ../files/ssh_config.j2
+        dest: ~/.ssh/config
+        mode: '0644'
+      vars:
+        bastion_ip: "{{ hostvars['bastion'].ansible_host }}"
+        secured_ip: "{{ hostvars['secured'].private_ip }}"
