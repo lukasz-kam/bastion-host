@@ -34,8 +34,17 @@ accessing bastion and secured instances.
 
 ### 4. Accessing instances
   ```
-  ssh bastion -p 37271
-  ssh secured -J bastion:37271
+  # Connect to the bastion host using:
+
+  ssh bastion
+
+  # From the bastion host, connect to the private server:
+
+  ssh secured
+
+  # Alternatively, connect directly using your local machine:
+
+  ssh secured
   ```
 
 ### Addidional info

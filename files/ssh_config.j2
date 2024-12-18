@@ -1,9 +1,11 @@
 Host bastion
     HostName {{ bastion_ip }}
     User ec2-user
+    Port 37271
     IdentityFile ~/.ssh/bastion-key
 
 Host secured
     HostName {{ secured_ip }}
     User ec2-user
+    ProxyJump bastion
     IdentityFile ~/.ssh/bastion-key

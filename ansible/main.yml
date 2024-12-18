@@ -1,5 +1,10 @@
 - hosts: localhost
   tasks:
+    - name: Ensure the certificates directory exists
+      ansible.builtin.file:
+        path: ../certificates
+        state: directory
+        mode: '0755'
     - name: Check if user-ca file exists
       ansible.builtin.stat:
         path: ../certificates/user-ca
@@ -16,6 +21,14 @@
       args:
         chdir: ../certificates
 
+    - name: Generate bastion SSH config
+      ansible.builtin.template:
+        src: ../files/bastion_ssh_config.j2
+        dest: /tmp/bastion_ssh
+        mode: '0644'
+      vars:
+        secured_ip: "{{ hostvars['secured'].private_ip }}"
+
 - hosts: bastion
   become: true
   tasks:
@@ -26,6 +39,28 @@
         owner: root
         group: root
         mode: '0644'
+
+    - name: Upload bastion SSH agent config
+      ansible.builtin.copy:
+        src: /tmp/bastion_ssh
+        dest: /home/ec2-user/.ssh/config
+        owner: ec2-user
+        group: ec2-user
+        mode: '0644'
+
+    - name: Upload ssh key for secured instance
+      ansible.builtin.copy:
+        src: ../terraform/tfkey
+        dest: /home/ec2-user/.ssh/secured_key
+        owner: ec2-user
+        group: ec2-user
+        mode: '0400'
+
+    - name: Remove authorized_keys file
+      ansible.builtin.file:
+        path: /home/ec2-user/.ssh/authorized_keys
+        state: absent
+
     - name: Change SSH port
       ansible.builtin.shell: echo "" >> /etc/ssh/sshd_config && echo "Port 37271" >> /etc/ssh/sshd_config
 
@@ -39,11 +74,6 @@
         owner: root
         group: root
         mode: '0644'
-
-    - name: Remove authorized_keys file
-      ansible.builtin.file:
-        path: /home/ec2-user/.ssh/authorized_keys
-        state: absent
 
     - name: Change SSHD to use TrustedUserCAKeys file
       ansible.builtin.shell: echo "" >> /etc/ssh/sshd_config && echo "TrustedUserCAKeys /etc/ssh/ca.pub" >> /etc/ssh/sshd_config
